@@ -1,14 +1,11 @@
-using NSQDatabase;
 using NSQDatabaseTools;
-
-namespace BasementBackend;
 
 static class Backend
 {
     public static void start()
     {
-        QDatabase.init("PC", "DbDemo");
+        QDatabase.Init("PC", "DbCnpm");
         // QDatabaseTools.getJsonScheme();
-        // Gen01.start();
+        Gen01.start();
     }
 }

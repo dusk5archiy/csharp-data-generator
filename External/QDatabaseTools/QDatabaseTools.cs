@@ -1,31 +1,30 @@
 using Microsoft.Data.SqlClient;
-using NSQDatabase;
 
 namespace NSQDatabaseTools;
 
 class QDatabaseTools
 {
-    public static void dropDatabase()
-    {
-        QDatabase.exec(
-            delegate(SqlConnection conn)
-            {
-                string query =
-                    $"SELECT name FROM sys.databases WHERE name NOT IN ('master', 'tempdb', 'model', 'msdb') AND name = '{QDatabase.database_name}'";
+    // public static void dropDatabase()
+    // {
+    //     QDatabase.Exec(
+    //         delegate(SqlConnection conn)
+    //         {
+    //             string query =
+    //                 $"SELECT name FROM sys.databases WHERE name NOT IN ('master', 'tempdb', 'model', 'msdb') AND name = '{QDatabase.database_name}'";
 
-                string? result = null;
-                QDatabase.execQuery(conn, query, reader => result = QDataReader.getStr(reader));
-                if (result != null)
-                    QDatabase.execQuery(
-                        conn,
-                        $"DROP DATABASE [{QDatabase.database_name}] CREATE DATABASE [{QDatabase.database_name}]"
-                    );
-                else
-                    QDatabase.execQuery(conn, $"CREATE DATABASE [{QDatabase.database_name}]");
-            },
-            server_only: true
-        );
-    }
+    //             string? result = null;
+    //             QDatabase.ExecQuery(conn, query, reader => result = QDataReader.getStr(reader));
+    //             if (result != null)
+    //                 QDatabase.ExecQuery(
+    //                     conn,
+    //                     $"DROP DATABASE [{QDatabase.database_name}] CREATE DATABASE [{QDatabase.database_name}]"
+    //                 );
+    //             else
+    //                 QDatabase.ExecQuery(conn, $"CREATE DATABASE [{QDatabase.Database_name}]");
+    //         },
+    //         server_only: true
+    //     );
+    // }
 
     public static void getJsonScheme()
     {
@@ -72,8 +71,12 @@ class QDatabaseTools
         ";
 
         string result = "";
-        QDatabase.exec(conn =>
-            QDatabase.execCmd(conn, query, cmd => result = (string)cmd.ExecuteScalar())
+        QDatabase.Exec(conn =>
+        {
+            SqlCommand command = new SqlCommand(query, conn);
+            result = (string)command.ExecuteScalar();
+            command.Dispose();
+        }
         );
         File.WriteAllText("schema.json", result);
         Console.WriteLine("Success");

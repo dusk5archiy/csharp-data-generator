@@ -1,7 +1,7 @@
 using Microsoft.Data.SqlClient;
 
-namespace NSQDatabase;
-
+// INFO: Tập hợp các hàm dùng để tạo đối tượng từ một SqlDataReader.
+// Cần xác định pos là chỉ số cột bắt đầu để đọc dữ liệu.
 sealed class QDataReader
 {
     // ========================================================================
@@ -50,10 +50,25 @@ sealed class QDataReader
     }
 
     // ------------------------------------------------------------------------
-    public static T getEnum<T>(SqlDataReader reader, ref int pos)
-        where T : Enum
+    // public static T getEnum<T>(SqlDataReader reader, ref int pos)
+    //     where T : Enum
+    // {
+    //     return (T)Enum.ToObject(typeof(T), reader.GetInt32(pos++));
+    // }
+
+    // ========================================================================
+    public static T getDataObj<T>(SqlDataReader reader, ref int pos)
+        where T : DataObj, new()
     {
-        return (T)Enum.ToObject(typeof(T), reader.GetInt32(pos++));
+        T info = new T();
+        info.fetch(reader, ref pos);
+        return info;
+    }
+
+    public static T getDataObj<T>(SqlDataReader reader, int pos = 0)
+        where T : DataObj, new()
+    {
+        return getDataObj<T>(reader, ref pos);
     }
 
     // ========================================================================

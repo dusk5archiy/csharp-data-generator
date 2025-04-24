@@ -1,6 +1,41 @@
 using Microsoft.Data.SqlClient;
 
-namespace NSQDatabase;
+class JoinQuery
+{
+    readonly string table;
+    readonly string? alias_;
+    readonly List<string> joins = [];
+    public JoinQuery(string table, string? alias_ = null)
+    {
+        this.table = QPiece.tableAlias(table, alias_);
+        this.alias_ = alias_;
+    }
+
+    public void AddField(string field_1, string field_2, string? alias_2 = null)
+    {
+        joins.Add(QPiece.eqField(QPiece.dot(field_1, alias_), QPiece.dot(field_2, alias_2)));
+    }
+
+    public void Add<T>(string field_1, T value)
+    {
+        joins.Add(QPiece.eq(QPiece.dot(field_1, alias_), value));
+    }
+
+    private string GetOnClause()
+    {
+        return $"{table} ON {string.Join(" AND ", joins)}";
+    }
+
+    public string Join()
+    {
+        return $"INNER JOIN {GetOnClause()}";
+    }
+
+    public string LeftJoin()
+    {
+        return $"LEFT JOIN {GetOnClause()}";
+    }
+}
 
 class Query
 {
@@ -15,15 +50,13 @@ class Query
     private string? offset_string = null;
 
     // ========================================================================
-    // INFO: Bắt đầu với một bảng
     public Query(string? table = null, string? alias = null)
     {
-        this.table = QPiece.tableAlias(table, alias);
+        this.table = table is not null ? QPiece.tableAlias(table, alias) : null;
     }
 
     // ========================================================================
-    // INFO: Thêm trường vào danh sách trường cần lấy
-    public void outputClause(params List<string> fields)
+    public void OutputClause(params List<string> fields)
     {
         foreach (var field in fields)
         {
@@ -32,32 +65,35 @@ class Query
         }
     }
 
-    public void outputAvgCastFloat(string field, string? alias = null)
+    public void OutputAvgCastFloat(string field, string? alias = null)
     {
-        outputClause(QPiece.avg(QPiece.castFloat(QPiece.dot(field, alias))));
+        OutputClause(QPiece.avg(QPiece.castFloat(QPiece.dot(field, alias))));
     }
 
-    public void outputAvg(string field, string? alias = null)
+    public void OutputAvg(string field, string? alias = null)
     {
-        outputClause(QPiece.avg(QPiece.dot(field, alias)));
+        OutputClause(QPiece.avg(QPiece.dot(field, alias)));
     }
 
-    public void output(string field, string? alias = null)
+    public void Output(string field, string? alias = null)
     {
-        outputClause(QPiece.dot(field, alias));
+        OutputClause(QPiece.dot(field, alias));
     }
 
-    public void outputTop(string field_, int top = 1, string? alias_ = null)
+    public void OutputTop(string field_, int top = 1, string? alias_ = null)
     {
-        outputClause($"TOP {top} {QPiece.dot(field_, alias_)}");
+        OutputClause($"TOP {top} {QPiece.dot(field_, alias_)}");
     }
 
-    public void outputQuery(string query)
+    public void OutputQuery(string query, string? alias_ = null)
     {
-        outputClause($"({query})");
+        if (alias_ is not null)
+            OutputClause($"({query}) AS {alias_}");
+        else
+            OutputClause($"({query})");
     }
 
-    public void groupByClause(params List<string> fields)
+    public void GroupByClause(params List<string> fields)
     {
         foreach (var field in fields)
         {
@@ -66,19 +102,19 @@ class Query
         }
     }
 
-    public void groupBy(string field_, string? alias_ = null)
+    public void GroupBy(string field_, string? alias_ = null)
     {
-        groupByClause(QPiece.dot(field_, alias_));
+        GroupByClause(QPiece.dot(field_, alias_));
     }
 
     // ========================================================================
-    public void offset(int page, int num_objs)
+    public void Offset(int page, int num_objs)
     {
         offset_string = $"OFFSET {(page - 1) * num_objs} ROWS FETCH NEXT {num_objs} ROWS ONLY";
     }
 
     // ========================================================================
-    public void removeOffset()
+    public void RemoveOffset()
     {
         offset_string = null;
     }
@@ -143,7 +179,7 @@ class Query
     }
 
     // ========================================================================
-    public void orderByClause(params List<string> order_by)
+    public void OrderByClause(params List<string> order_by)
     {
         foreach (var field in order_by)
         {
@@ -152,9 +188,9 @@ class Query
         }
     }
 
-    public void orderBy(string field_, bool desc = false, string? alias_ = null)
+    public void OrderBy(string field_, bool desc = false, string? alias_ = null)
     {
-        orderByClause(QPiece.orderBy(QPiece.dot(field_, alias_), desc: desc));
+        OrderByClause(QPiece.orderBy(QPiece.dot(field_, alias_), desc: desc));
     }
 
     // ========================================================================
@@ -192,12 +228,24 @@ class Query
         }
     }
 
-    public void join(string field_1, string field_2, string? alias_1 = null, string? alias_2 = null)
+    public void Join(string field_1, string field_2, string? alias_1 = null, string? alias_2 = null)
     {
-        string table_1 = field_1.Split('.')[0][1..^1];
+        string table_1 = field_1.Split('.')[0].Trim('[').Trim(']');
         JoinClause(
             QPiece.join(
-                QPiece.fieldAlias(table_1, alias_1),
+                QPiece.tableAlias(table_1, alias_1),
+                QPiece.dot(field_1, alias_1),
+                QPiece.dot(field_2, alias_2)
+            )
+        );
+    }
+
+    public void LeftJoin(string field_1, string field_2, string? alias_1 = null, string? alias_2 = null)
+    {
+        string table_1 = field_1.Split('.')[0].Trim('[').Trim(']');
+        JoinClause(
+            QPiece.LeftJoin(
+                QPiece.tableAlias(table_1, alias_1),
                 QPiece.dot(field_1, alias_1),
                 QPiece.dot(field_2, alias_2)
             )
@@ -205,7 +253,7 @@ class Query
     }
 
     // ========================================================================
-    public string getWhereClause()
+    public string GetWhereClause()
     {
         var conditions_str = string.Join(" AND ", conditions);
         string query = "";
@@ -215,7 +263,7 @@ class Query
     }
 
     // ========================================================================
-    private string getJoinClause()
+    private string GetJoinClause()
     {
         if (inner_joins.Count == 0)
             return "";
@@ -223,7 +271,7 @@ class Query
     }
 
     // ========================================================================
-    private string getGroupByClause()
+    private string GetGroupByClause()
     {
         string query = "";
         if (group_bys.Count > 0)
@@ -235,7 +283,7 @@ class Query
     }
 
     // ========================================================================
-    private string getOrderClause()
+    private string GetOrderClause()
     {
         string query = "";
         if (order_bys.Count > 0)
@@ -248,7 +296,7 @@ class Query
 
     // ------------------------------------------------------------------------
     // INFO: Trả về truy vấn SELECT
-    public string selectQuery()
+    public string SelectQuery()
     {
         var output_fields_str = output_fields.Count > 0 ? string.Join(", ", output_fields) : "*";
         string query = $"SELECT {output_fields_str}";
@@ -256,10 +304,10 @@ class Query
         {
             query += $" FROM {table}";
         }
-        query += getJoinClause();
-        query += getWhereClause();
-        query += getGroupByClause();
-        query += getOrderClause();
+        query += GetJoinClause() ;
+        query += GetWhereClause();
+        query += GetGroupByClause();
+        query += GetOrderClause();
         if (offset_string is not null)
         {
             if (order_bys.Count == 0)
@@ -271,51 +319,76 @@ class Query
 
     // ------------------------------------------------------------------------
     // INFO: Trả về truy vấn DELETE
-    public string deleteQuery()
+    public string DeleteQuery()
     {
-        return $"DELETE FROM {table}" + getWhereClause();
+        return $"DELETE FROM {table}" + GetWhereClause();
     }
 
     // ------------------------------------------------------------------------
-    public string updateQuery()
+    public string UpdateQuery()
     {
         string query = $"UPDATE {table} SET ";
         string set_fields_str = string.Join(", ", set_fields);
-        query += set_fields_str + getWhereClause();
+        query += set_fields_str + GetWhereClause();
         return query;
     }
 
-    public string insertQuery(string data)
+    public string InsertQuery(string data)
     {
         string query = $"INSERT INTO {table} VALUES ({data})";
         return query;
     }
 
     // ========================================================================
-    public void select(SqlConnection conn, QDatabase.ReaderFunction f) =>
-        QDatabase.execQuery(conn, selectQuery(), f);
+    public void Select(SqlConnection conn, QDatabase.ReaderFunction f) =>
+        QDatabase.ExecQuery(conn, SelectQuery(), f);
 
     // ------------------------------------------------------------------------
-    public T scalar<T>(SqlConnection conn)
+    public T Scalar<T>(SqlConnection conn)
     {
-        SqlCommand command = new SqlCommand(selectQuery(), conn);
+        SqlCommand command = new SqlCommand(SelectQuery(), conn);
         return (T)command.ExecuteScalar();
     }
 
-    public int scalar(SqlConnection conn)
+    private int Scalar(SqlConnection conn)
     {
-        return scalar<int>(conn);
+        return Scalar<int>(conn);
     }
 
     // ------------------------------------------------------------------------
-    public void delete(SqlConnection conn) => QDatabase.execQuery(conn, deleteQuery());
+    public void Delete(SqlConnection conn) => QDatabase.ExecQuery(conn, DeleteQuery());
 
     // ------------------------------------------------------------------------
-    public void insert(SqlConnection conn, string data) =>
-        QDatabase.execQuery(conn, insertQuery(data));
+    public void Insert(SqlConnection conn, string data) =>
+        QDatabase.ExecQuery(conn, InsertQuery(data));
 
     // ------------------------------------------------------------------------
-    public void update(SqlConnection conn) => QDatabase.execQuery(conn, updateQuery());
+    public void Update(SqlConnection conn) => QDatabase.ExecQuery(conn, UpdateQuery());
+
+    // ------------------------------------------------------------------------
+    public List<T> Select<T>(SqlConnection conn)
+        where T : DataObj, new()
+    {
+        List<T> results = new();
+        QDatabase.ExecQuery(
+            conn,
+            SelectQuery(),
+            reader => results.Add(QDataReader.getDataObj<T>(reader))
+        );
+        return results;
+    }
+
+    public void Insert<T>(SqlConnection conn, T obj)
+        where T : DataObj, new()
+    {
+        Insert(conn, string.Join(", ", obj.ToList()));
+    }
+
+    public int Count(SqlConnection conn)
+    {
+        Output(QPiece.countAll);
+        return Scalar(conn);
+    }
 
     // ========================================================================
 }
