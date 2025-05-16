@@ -88,6 +88,12 @@ shifts = [
 
 # Define the data classes based on the class diagram
 @dataclass
+class Admin:
+    id_: int
+    tenDangNhap: str
+    matKhau: str
+
+@dataclass
 class HocVien:
     id_: int
     tenDangNhap: str
@@ -152,6 +158,7 @@ class IdCounter:
     count: int
 
 # Lists to hold generated data
+TblAdmin = []
 TblHocVien = []
 TblGiaSu = []
 TblKhoaHoc = []
@@ -206,6 +213,14 @@ def calculate_birth_year(grade):
     # In Vietnam, children typically start grade 1 at age 6
     # So in 2025, a 1st grader would typically be born in 2019
     return 2025 - (grade + 5)
+
+# Generate Admin data
+admin = Admin(
+    id_=1,
+    tenDangNhap="admin",
+    matKhau=hash_password("admin")
+)
+TblAdmin.append(admin)
 
 # Generate HocVien data
 num_hoc_vien = 50
@@ -316,6 +331,9 @@ subjects = [
     "Sinh Học", "Lịch Sử", "Địa Lý", "Tin Học"
 ]
 
+# Generate a range of fees from 300,000 to 400,000 with steps of 5,000
+fee_options = list(range(300000, 400001, 5000))
+
 num_khoa_hoc = 20
 for _ in range(num_khoa_hoc):
     kh_id = NextId.khoahoc
@@ -323,7 +341,8 @@ for _ in range(num_khoa_hoc):
     grade = random.randint(1, 12)
     # Adjust the number of sessions to be 3 or 4
     sessions = random.randint(3, 4)
-    fee = random.randint(100000, 300000)
+    # Select a fee from the predefined range
+    fee = random.choice(fee_options)
     
     khoa_hoc = KhoaHoc(
         id_=kh_id,
@@ -431,6 +450,7 @@ if not os.path.exists("data"):
     os.makedirs("data")
 
 # Output data to JSON files
+json_output("Admin", TblAdmin)
 json_output("HocVien", TblHocVien)
 json_output("GiaSu", TblGiaSu)
 json_output("KhoaHoc", TblKhoaHoc)

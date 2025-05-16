@@ -4,7 +4,7 @@ static class Backend
 {
     public static void start()
     {
-        QDatabase.Init("PC", "DbCnpm");
+        QDatabase.Init("PC", "DbDotnet");
         // QDatabaseTools.getJsonScheme();
         Gen01.start();
     }
